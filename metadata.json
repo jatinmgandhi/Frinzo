@@ -1,0 +1,5 @@
+{
+  "name": "Gemini Hangman",
+  "description": "A modern, browser-based Hangman game. Input your own words or let Gemini AI generate a challenging list for you.",
+  "requestFramePermissions": []
+}
