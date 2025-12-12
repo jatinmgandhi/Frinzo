@@ -3,7 +3,7 @@ import { SetupForm } from './components/SetupForm';
 import { HangmanDrawing } from './components/HangmanDrawing';
 import { Keyboard } from './components/Keyboard';
 import { GameScreen, GameState, MAX_ERRORS } from './types';
-import { RotateCcw, ArrowRight, Trophy, Skull } from 'lucide-react';
+import { RotateCcw, ArrowRight, Trophy, Skull, XCircle } from 'lucide-react';
 
 function App() {
   const [gameState, setGameState] = useState<GameState>({
@@ -55,15 +55,23 @@ function App() {
     const handler = (e: KeyboardEvent) => {
       const key = e.key.toUpperCase();
       if (!key.match(/^[A-Z]$/)) return;
-      e.preventDefault();
-      addGuessedLetter(key);
+
+      // Ignore if user is typing in an input field (e.g. setup form)
+      const target = e.target as HTMLElement;
+      if (target.matches('input, textarea')) return;
+      
+      // Only capture keys if playing
+      if (gameState.screen === GameScreen.PLAYING) {
+        e.preventDefault();
+        addGuessedLetter(key);
+      }
     };
 
-    document.addEventListener("keypress", handler);
+    document.addEventListener("keydown", handler);
     return () => {
-      document.removeEventListener("keypress", handler);
+      document.removeEventListener("keydown", handler);
     };
-  }, [addGuessedLetter]);
+  }, [addGuessedLetter, gameState.screen]);
 
   const handleStartGame = (words: string[]) => {
     setGameState({
@@ -102,9 +110,18 @@ function App() {
     });
   };
 
+  const handleQuit = () => {
+    setGameState(prev => ({ ...prev, screen: GameScreen.VICTORY }));
+  };
+
   // Helper to check if player won the current word
   const isWordWon = currentWord.split('').every(char => gameState.guessedLetters.has(char));
   const isWordLost = gameState.wrongGuesses >= MAX_ERRORS;
+
+  // Derive active/inactive letters for keyboard
+  const guessedArray = Array.from(gameState.guessedLetters);
+  const activeLetters = new Set(guessedArray.filter(l => currentWord.includes(l)));
+  const inactiveLetters = new Set(guessedArray.filter(l => !currentWord.includes(l)));
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-50 font-sans">
@@ -125,9 +142,22 @@ function App() {
                 <Trophy className="w-5 h-5" />
                 Score: {gameState.score}
             </div>
-            <button onClick={handleRestart} className="text-slate-400 hover:text-slate-600 transition-colors">
-                <RotateCcw className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2">
+                <button 
+                  onClick={handleQuit} 
+                  className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
+                  title="Quit Game"
+                >
+                    <XCircle className="w-6 h-6" />
+                </button>
+                <button 
+                  onClick={handleRestart} 
+                  className="p-2 text-slate-400 hover:text-primary hover:bg-indigo-50 rounded-full transition-all"
+                  title="Restart Setup"
+                >
+                    <RotateCcw className="w-6 h-6" />
+                </button>
+            </div>
           </div>
 
           <div className="flex flex-col md:flex-row gap-8 md:gap-16 items-center justify-center w-full">
@@ -180,8 +210,8 @@ function App() {
 
           <Keyboard
             disabled={gameState.screen !== GameScreen.PLAYING}
-            activeLetters={gameState.guessedLetters.keys().filter(l => currentWord.includes(l as string)) as unknown as Set<string>} // Type casting for Set iteration compat
-            inactiveLetters={gameState.guessedLetters.keys().filter(l => !currentWord.includes(l as string)) as unknown as Set<string>}
+            activeLetters={activeLetters}
+            inactiveLetters={inactiveLetters}
             addGuessedLetter={addGuessedLetter}
           />
         </div>
@@ -193,20 +223,27 @@ function App() {
                 <Trophy className="w-10 h-10" />
             </div>
             <div>
-                <h2 className="text-3xl font-bold text-slate-900">Game Complete!</h2>
-                <p className="text-slate-500 mt-2">You finished the word list.</p>
+                <h2 className="text-3xl font-bold text-slate-900">Session Ended</h2>
+                <p className="text-slate-500 mt-2">
+                  {gameState.currentWordIndex >= gameState.wordList.length 
+                    ? "You finished the word list!" 
+                    : "You ended the game early."}
+                </p>
             </div>
             
             <div className="py-6 border-y border-slate-100">
-                <div className="text-4xl font-black text-primary">{gameState.score} / {gameState.wordList.length}</div>
-                <div className="text-sm text-slate-400 mt-1">Total Score</div>
+                <div className="text-4xl font-black text-primary">{gameState.score} / {gameState.currentWordIndex}</div>
+                <div className="text-sm text-slate-400 mt-1">Score for words attempted</div>
+                {gameState.currentWordIndex < gameState.wordList.length && (
+                  <p className="text-xs text-slate-400 mt-2">(Total list size: {gameState.wordList.length})</p>
+                )}
             </div>
 
             <button 
                 onClick={handleRestart}
                 className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold hover:bg-slate-800 transition-colors"
             >
-                Play Again
+                Start New Game
             </button>
         </div>
       )}

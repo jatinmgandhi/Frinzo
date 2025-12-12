@@ -1,6 +1,18 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const apiKey = process.env.API_KEY || '';
+// Safely attempt to retrieve API key, avoiding crashes in environments where process is undefined
+const getApiKey = () => {
+  try {
+    if (typeof process !== "undefined" && process.env && process.env.API_KEY) {
+      return process.env.API_KEY;
+    }
+  } catch (e) {
+    // Ignore error
+  }
+  return "";
+};
+
+const apiKey = getApiKey();
 const ai = new GoogleGenAI({ apiKey });
 
 export const generateWordList = async (topic: string, count: number): Promise<string[]> => {
